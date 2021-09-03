@@ -13,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by jt on 2019-04-20.
@@ -46,9 +47,7 @@ public class BeerController {
             pageSize = DEFAULT_PAGE_SIZE;
         }
 
-        BeerPagedList beerList = beerService.listBeers(beerName, beerStyle, PageRequest.of(pageNumber, pageSize), showInventoryOnHand);
-
-        return ResponseEntity.ok(Mono.just(beerList));
+        return ResponseEntity.ok(beerService.listBeers(beerName, beerStyle, PageRequest.of(pageNumber, pageSize), showInventoryOnHand));
     }
 
     @GetMapping("beer/{beerId}")
@@ -69,11 +68,15 @@ public class BeerController {
     @PostMapping(path = "beer")
     public ResponseEntity<Void> saveNewBeer(@RequestBody @Validated BeerDto beerDto){
 
-        BeerDto savedBeer = beerService.saveNewBeer(beerDto);
+        AtomicInteger atomicIntegerBeerId = new AtomicInteger();
+
+        beerService.saveNewBeer(beerDto).subscribe(savedBeerDto -> {
+            atomicIntegerBeerId.set(savedBeerDto.getId());
+        });
 
         return ResponseEntity
                 .created(UriComponentsBuilder
-                        .fromHttpUrl("http://api.springframework.guru/api/v1/beer/" + savedBeer.getId().toString())
+                        .fromHttpUrl("http://api.springframework.guru/api/v1/beer/" + atomicIntegerBeerId.get())
                         .build().toUri())
                 .build();
     }
